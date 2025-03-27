@@ -1,0 +1,5 @@
+.env
+agents.db
+.venv
+node_modules
+
