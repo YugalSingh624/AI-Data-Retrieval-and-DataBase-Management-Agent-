@@ -408,3 +408,136 @@ footer {
   padding: 20px 0;
   border-top: 1px solid var(--border-color);
 }
+
+
+/* Container for the saved responses page */
+.saved-responses-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* Error message style */
+.error-message {
+  color: red;
+  margin-bottom: 10px;
+}
+
+/* List container for all response cards */
+.responses-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px; /* space between cards */
+}
+
+/* Individual response card (timestamp & query only) */
+.response-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 16px;
+  background-color: #f9f9f9;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.response-card:hover {
+  background-color: #f2f2f2;
+}
+
+.card-content {
+  flex: 1;
+}
+
+/* Delete button with dustbin icon */
+.delete-button {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #c00;
+  margin-left: 10px;
+  padding: 4px 8px;
+  transition: transform 0.1s ease;
+}
+
+.delete-button:hover {
+  transform: scale(1.1);
+}
+
+/* --- Modal Styles --- */
+
+/* Dark overlay covering the entire screen */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Modal content container
+   - Takes 85% of the viewport width and height
+   - Centered by the overlay's flex layout
+*/
+.modal-content {
+  width: 85vw;
+  height: 85vh;
+  background-color: #fff;
+  padding: 40px;
+  border-radius: 8px;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Sticky header inside the modal */
+.modal-header {
+  position: sticky;
+  top: 0;
+  background-color: transparent;
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px;
+  z-index: 2; /* ensures the header stays on top while scrolling */
+}
+
+/* Close button in the top-right corner */
+.close-button {
+  font-size: 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  color: #666;
+}
+
+.close-button:hover {
+  color: #000;
+}
+
+/* Buttons inside modal */
+.modal-buttons {
+  margin-top: 20px;
+  display: flex;
+  gap: 10px;
+}
+
+.modal-buttons button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.modal-buttons button:hover {
+  opacity: 0.8;
+}
+

@@ -1,10 +1,12 @@
 // File: App.jsx
 import React, { useState, useEffect, useRef } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import './App.css';
 import SearchBar from './components/SearchBar';
 import ResponseArea from './components/ResponseArea';
 import ToolCallsViewer from './components/ToolCallsViewer';
 import LoadingIndicator from './components/LoadingIndicator';
+import SavedResponsesPage from './components/SavedResponsesPage';
 import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
 
 // Base URL for the Flask backend
@@ -18,6 +20,8 @@ function App() {
   const [error, setError] = useState(null);
   const eventSourceRef = useRef(null);
 
+  const { user } = useUser();
+
   const handleSearch = async (searchQuery) => {
     setQuery(searchQuery);
     setCleanedResponse('');
@@ -25,13 +29,11 @@ function App() {
     setError(null);
     setIsLoading(true);
 
-    // Close any existing EventSource connection
     if (eventSourceRef.current) {
       eventSourceRef.current.close();
     }
 
     try {
-      // Create new EventSource connection to Flask backend
       const encodedQuery = encodeURIComponent(searchQuery);
       eventSourceRef.current = new EventSource(`${API_BASE_URL}/api/stream?query=${encodedQuery}`);
 
@@ -41,10 +43,9 @@ function App() {
           console.log("Received Cleaned data:", data);
       
           if (data.chunk) {
-            // Accumulate chunks for cleaned response
-            setCleanedResponse(prev => prev + (data.chunk || ''));
+            setCleanedResponse((prev) => prev + (data.chunk || ''));
           } else if (data.tool_call) {
-            setToolCalls(prev => [...prev, data.tool_call]);
+            setToolCalls((prev) => [...prev, data.tool_call]);
           } else if (data.done) {
             setIsLoading(false);
             eventSourceRef.current.close();
@@ -73,7 +74,7 @@ function App() {
     }
   };
 
-  // Ping the server to check connection on component mount
+  // Check server connection on mount
   useEffect(() => {
     const checkServerConnection = async () => {
       try {
@@ -103,8 +104,7 @@ function App() {
     };
   }, []);
 
-  const { user } = useUser();
-
+  // Sync user data with backend
   useEffect(() => {
     const syncUserToBackend = async () => {
       if (user) {
@@ -135,47 +135,64 @@ function App() {
   }, [user]);
 
   return (
-    <div className="app-container">
-      <header>
-      <div className="auth-buttons">
-        <SignedOut>
-          <SignInButton className="cl-signIn-button" />
-        </SignedOut>
-        <SignedIn>
-          <UserButton className="cl-user-button" />
-        </SignedIn>
-      </div>
-        <h1>AI Search Assistant</h1>
-        <p>Powered by multiple search engines and web scraping</p>
-      </header>
-      
-      <main>
-        <SearchBar onSearch={handleSearch} isLoading={isLoading} />
-        
-        {isLoading && <LoadingIndicator />}
-        
-        {error && (
-          <div className="error-message">
-            <p>{error}</p>
+    // Wrap the entire application in a Router
+    <Router>
+      <div className="app-container">
+        <header>
+          <div className="auth-buttons">
+            <SignedOut>
+              <SignInButton className="cl-signIn-button" />
+            </SignedOut>
+            <SignedIn>
+              <UserButton className="cl-user-button" />
+            </SignedIn>
           </div>
-        )}
-        
-        <div className="content-container">
-          <ResponseArea response={cleanedResponse} isFinalResponse={true}/>
-          
-          {toolCalls.length > 0 && (
-            <ToolCallsViewer toolCalls={toolCalls} />
-          )}
-        </div>
-      </main>
+          <h1>AI Search Assistant</h1>
+          <p>Powered by multiple search engines and web scraping</p>
 
+          {/* Simple navigation to switch between home and saved responses */}
+          <nav>
+            <Link to="/" style={{ marginRight: '10px' }}>Home</Link>
+            <Link to="/saved-responses">Saved Responses</Link>
+          </nav>
+        </header>
 
-      
-      <footer>
-        <p>Using Flask backend with multiple AI-powered search agents</p>
-        <p>Connected to: {API_BASE_URL}</p>
-      </footer>
-    </div>
+        {/* Define Routes for "/" and "/saved-responses" */}
+        <Routes>
+          {/* Home route ("/") renders your existing main content */}
+          <Route
+            path="/"
+            element={
+              <main>
+                <SearchBar onSearch={handleSearch} isLoading={isLoading} />
+                {isLoading && <LoadingIndicator />}
+                {error && (
+                  <div className="error-message">
+                    <p>{error}</p>
+                  </div>
+                )}
+                <div className="content-container">
+                  {/* Pass the original search query to ResponseArea */}
+                  <ResponseArea response={cleanedResponse} isFinalResponse={true} searchQuery={query} />
+                  {toolCalls.length > 0 && <ToolCallsViewer toolCalls={toolCalls} />}
+                </div>
+              </main>
+            }
+          />
+
+          {/* Route for "/saved-responses" */}
+          <Route
+            path="/saved-responses"
+            element={<SavedResponsesPage />}
+          />
+        </Routes>
+
+        <footer>
+          <p>Using Flask backend with multiple AI-powered search agents</p>
+          <p>Connected to: {API_BASE_URL}</p>
+        </footer>
+      </div>
+    </Router>
   );
 }
 

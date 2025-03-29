@@ -12,6 +12,8 @@ import re
 import os
 import json
 from flask_cors import CORS
+from bson import ObjectId
+from pymongo import MongoClient
 
 load_dotenv()
 
@@ -20,23 +22,56 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 app = Flask(__name__)
 CORS(app)  # This will enable CORS for all routes
 
-# Enhanced instructions for search and scraping agents
+# Enhanced instructions for search and scraping agents with specific focus on schools and companies
 search_instructions = [
-    "Always provide sources for your information",
-    "For companies, focus on finding their official website, key services, location, and recent news",
-    "For schools, look for official websites, programs offered, accreditation, and contact information",
-    "For pubs/restaurants, find location, opening hours, menu highlights, and reviews",
-    "When you find relevant websites, use web scraping tools to extract detailed information",
-    "Use Firecrawl for crawling multiple pages on a domain",
-    "Use Crawl4ai for deep extraction of specific content from a single page",
-    "Format information in a consistent, readable manner",
-    "When information conflicts between sources, acknowledge the discrepancy and note which source is likely more reliable",
-    "Always indicate when information might be outdated",
-    "When given a general knowledge question, search for accurate information and provide a concise answer",
-    "ALWAYS perform a search for ANY questions about events, developments, or information from 2023 or later",
-    "NEVER rely on your built-in knowledge for any questions about events after 2023 - ALWAYS search instead",
-    "When answering general knowledge questions, also provide sources for verification",
-    "Show the information in table which is possible to be shown in table"
+    '''CRITICAL WORKFLOW FOR INFORMATION RETRIEVAL:
+    1. Use multiple search engines to gather latest information,
+    2. Cross-reference and validate data from at least 3 different sources,
+    3. Combine web search results with contextual LLM knowledge,''',
+    
+    '''For school or college queries, create a comprehensive table with:
+    - Institution Name (Latest Official Name),
+    - Established Year (Verified from Multiple Sources),
+    - Location (Current, Precise Location),
+    - Type (Public/Private - Most Recent Status),
+    - Total Student Enrollment (Most Recent Academic Year),
+    - Annual Tuition Fees (Current Academic Year),
+    - Top Programs Offered (Updated Curriculum),
+    - Accreditation Status (Most Recent Certification),
+    - Average Campus Placement Rate (Latest Available Data),
+    - Recent Notable Achievements (Within Last 2 Years),
+    - Campus Facilities (Current Infrastructure)
+    and also try to include other relevant information apart from table content''',
+    
+    '''For company queries, create a comprehensive table with:
+    - Company Name (Latest Official Name),
+    - Founded Year (Verified Date),
+    - Headquarters Location (Current Address),
+    - Industry Sector (Most Recent Classification),
+    - Number of Employees (Latest Reported Count),
+    - Annual Revenue (Most Recent Financial Year),
+    - Average Salary Range (Current Market Data),
+    - Top Job Roles (Updated Job Market Trends),
+    - Company Culture Rating (Recent Employee Feedback),
+    - Recent Major News/Developments (Last 12 Months)",
+    - Key Products/Services (Current Offerings)
+    and also try to include other relevant information apart from table content ''',
+    
+    '''ADVANCED RETRIEVAL GUIDELINES:
+    - Prioritize official websites, recent news articles, verified review platforms,
+    - Use web scraping to extract detailed, current information,
+    - When information conflicts, present multiple perspectives,
+    - Indicate source reliability and recency of each data point,
+    - Use markdown table formatting for clear presentation,
+    - Include sources for each piece of information,
+    - Provide context beyond raw data''',
+    
+    '''CRITICAL FUSION INSTRUCTION:
+    ALWAYS combine web search results with LLM's contextual knowledge,
+    - If web search provides specific data points, integrate them,
+    - Use LLM to provide deeper analysis, historical context,
+    - Highlight differences between web data and existing knowledge,
+    - Provide a comprehensive, nuanced response'''
 ]
 
 # Helper function to determine if a query references future events or recent topics
@@ -68,8 +103,16 @@ def detect_future_or_recent(query):
                     "tournament", "match", "game", "series", "season"]
     has_sports_terms = any(term in query_lower for term in sports_terms)
     
+    # Add specific keywords for schools and companies
+    school_terms = ["university", "college", "school", "campus", "institution"]
+    company_terms = ["company", "corporation", "startup", "business", "enterprise"]
+    
+    has_school_terms = any(term in query_lower for term in school_terms)
+    has_company_terms = any(term in query_lower for term in company_terms)
+    
     # Return True if any condition is met
-    return has_future_year or has_year_match or (has_recency_terms and has_sports_terms)
+    return (has_future_year or has_year_match or 
+            (has_recency_terms and (has_sports_terms or has_school_terms or has_company_terms)))
 
 # Enhanced Google Search agent with web scraping capabilities
 search_agent_GoogleSearch = Agent(
@@ -113,31 +156,61 @@ search_agent_BaiduSearch = Agent(
     show_tool_calls=True
 )
 
-# Main coordinator agent with enhanced instructions
+# Enhanced main agent instructions for information fusion
 current_year = datetime.now().year
 main_agent_instructions = [
-    "Always provide sources for your information",
-    "Analyze user queries to determine which search agent(s) would be most appropriate",
-    "For international or global entities, use multiple search engines",
-    "For regionally specific information, prioritize the most relevant search engine (e.g., Baidu for Chinese entities)",
-    "Synthesize information from multiple sources, including both search results and scraped web content",
-    "Present information in a clear, structured format with sources cited",
-    "For company information, organize by: Overview, Products/Services, Key Facts, Recent News",
-    "For schools, organize by: Programs, Admissions, Rankings/Reputation, Facilities",
-    "For pubs/restaurants, organize by: Location, Hours, Menu, Reviews/Ratings",
-    "Include direct quotes from official websites when available",
-    "When different sources provide conflicting information, present all perspectives and indicate which is likely more reliable",
-    f"CRITICAL: For ANY query that mentions years 2023 or later, or references events from {current_year-1} onwards, or asks about future events, championships, tournaments, etc., ALWAYS delegate to search tools - NEVER rely on your built-in knowledge for these topics",
-    "When the query mentions specific dates, years, or time periods after 2023, or uses terms like 'current', 'recent', 'latest', 'upcoming', etc., ALWAYS use search tools",
-    "For sports events, championships, tournaments, matches, or competitions that are mentioned with dates after 2023 or without specific dates, ALWAYS use search tools",
-    "When handling general knowledge questions about established historical facts (prior to 2023), you may provide a direct answer if confident",
-    "Start every response by first determining if the query references recent/future events or contains years beyond 2023",
-    "Always indicate when you're providing information based on searched sources versus general knowledge",
-    "For general knowledge questions, provide a concise, educational response with relevant context",
-    "Show the information in table which is possible to be shown in table",
+    # Information quality and citation
+    "Always provide accurate information with clear attribution to sources",
+    "Include direct links to source websites when available",
+    "Evaluate source credibility and prioritize official websites and reputable sources",
+    
+    # Query analysis and search engine selection
+    "Analyze queries deeply to identify subject domain, geographic relevance, and recency requirements",
+    "Use multiple search engines for global topics to ensure comprehensive coverage",
+    "For Asia-specific queries, prioritize Baidu Search",
+    "For privacy-sensitive topics, prioritize DuckDuckGo",
+    "For general global queries, prefer Google Search",
+    
+    # Web scraping and information synthesis
+    "Use web scraping tools strategically - Crawl4ai for deep content extraction from key pages",
+    "Synthesize information across multiple sources to provide a complete picture",
+    "When sources conflict, present all perspectives with your assessment of reliability",
+    "Format extracted data in tables whenever the information is structured and comparable",
+    
+    # Domain-specific organization
+    "For companies: Structure as Company Overview, Products/Services, Leadership, Financials, Recent News",
+    "For educational institutions: Present Programs, Admissions, Rankings, Campus Life, Faculty Highlights",
+    "For locations/venues: Organize as Address, Opening Hours, Offerings, Reviews, Contact Information",
+    "For products: Show Features, Pricing, Availability, Comparisons, Customer Reviews",
+    "For events: Include Dates, Location, Participants, Schedule, Registration/Ticket Information",
+    
+    # Recency handling (critical)
+    f"MANDATORY: For ANY query referencing dates from 2023 onwards, current events, or recent developments, ALWAYS use search tools",
+    f"For sports events, tournaments, competitions, championships occurring from {current_year-1} onwards, ALWAYS use search tools",
+    "Never rely on built-in knowledge for time-sensitive information like prices, schedules, rankings, or statistics",
+    "When terms like 'current', 'latest', 'recent', 'upcoming', 'scheduled', or 'announced' appear in queries, always search",
+    
+    # Response quality
+    "Begin responses with a direct, concise answer to the query before providing supporting details",
+    "Prioritize readability with clear headings, short paragraphs, and bullet points for lists",
+    "Use tables to compare multiple entities or organize structured information",
+    "Include both summary information and detailed facts to accommodate different user needs",
+    "Provide perspective on information significance when relevant (e.g., whether a statistic is high/low)",
+    
+    # Special handling
+    "For numerical data, include context (e.g., industry averages, historical trends) when available",
+    "For technical topics, provide both simplified explanations and detailed information",
+    "When information appears outdated, explicitly note this and search for more recent sources",
+    "For controversial topics, present multiple viewpoints with balanced treatment",
+    
+    # Process transparency
+    "Clearly indicate which search engines were used to retrieve information",
+    "Note when information comes from web scraping versus search results",
+    "Acknowledge information gaps when searches don't yield complete answers",
+    "Always double-check calculations and factual claims before presenting them"
 ]
 
-# Create a system message that forces the agent to use search for recent/future topics
+# System message template for guiding the agent
 system_message_template = """
 You are an advanced information retrieval system. Before responding to ANY query, follow this protocol EXACTLY:
 
@@ -184,6 +257,18 @@ agent_team = EnhancedAgent(
     markdown=True,
     system_message=system_message_template.format(user_query="Example query")
 )
+
+
+
+
+# Change above code only
+
+
+
+
+
+
+
 
 # Override the run method to inject the actual query into the system message
 original_run = agent_team.run
@@ -465,8 +550,8 @@ def push_search_data():
         # Get the data from the request
         data = request.json
         
-        # Validate required fields
-        if not data or 'content' not in data or 'userId' not in data:
+        # Validate required fields (now also ensuring 'searchQuery' is present)
+        if not data or 'content' not in data or 'userId' not in data or 'searchQuery' not in data:
             return jsonify({"error": "Missing required fields"}), 400
         
         # Find the user in the database to get additional details
@@ -474,12 +559,13 @@ def push_search_data():
         if not user:
             return jsonify({"error": "User not found"}), 404
         
-        # Prepare the search result document
+        # Prepare the search result document with the searchQuery field included
         search_result = {
             "userId": data['userId'],
             "username": user.get('name', 'Unknown User'),
             "email": user.get('email', 'No email'),
             "content": data['content'],
+            "searchQuery": data['searchQuery'],  # Inserting the original search query
             "timestamp": datetime.utcnow()
         }
         
@@ -494,6 +580,71 @@ def push_search_data():
     except Exception as e:
         print(f"Error storing search data: {e}")
         return jsonify({"error": "Internal server error"}), 500
+
+    
+@app.route('/api/get-stored-responses', methods=['POST'])
+def get_stored_responses():
+    try:
+        data = request.get_json()  # or request.json, but get_json is recommended
+        user_id = data.get('userId')
+        
+        if not user_id:
+            return jsonify({"error": "No user ID provided"}), 400
+        
+        # Fetch stored responses for this user, sorted by timestamp (desc), limit 50
+        stored_responses = list(
+            search_collection.find(
+                {"userId": user_id},
+                {"_id": 1, "content": 1, "timestamp": 1, "searchQuery": 1}
+            )
+            .sort("timestamp", -1)
+            .limit(50)
+        )
+        
+        # Convert timestamp to ISO format and _id to string
+        for resp in stored_responses:
+            resp['timestamp'] = resp['timestamp'].isoformat()
+            resp['_id'] = str(resp['_id'])  # Convert ObjectId to string
+        
+        return jsonify({"responses": stored_responses}), 200
+    
+    except Exception as e:
+        print(f"Error fetching stored responses: {e}")
+        return jsonify({"error": "Internal server error"}), 500
+
+
+
+@app.route('/api/delete-response', methods=['DELETE'])
+def delete_response():
+    try:
+        # Use request.get_json() instead of request.json
+        data = request.get_json()
+        print("Request data is:", data)
+
+        if not data:
+            return jsonify({"error": "Missing request data"}), 400
+
+        response_id = data.get('responseId')
+        if not response_id:
+            return jsonify({"error": "Missing response ID"}), 400
+
+        # Add error handling for ObjectId conversion
+        try:
+            object_id = ObjectId(response_id)
+        except Exception as e:
+            print(f"Invalid ObjectId format: {response_id}, error: {e}")
+            return jsonify({"error": f"Invalid ID format: {response_id}"}), 400
+
+        result = search_collection.delete_one({'_id': object_id})
+        if result.deleted_count == 1:
+            return jsonify({"message": "Response deleted successfully"}), 200
+        else:
+            return jsonify({"error": "Response not found"}), 404
+
+    except Exception as e:
+        print(f"Error deleting response: {e}")
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+
 
 
 if __name__ == "__main__":

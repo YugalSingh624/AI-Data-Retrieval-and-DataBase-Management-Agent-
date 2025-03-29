@@ -1,7 +1,10 @@
+// File: components/ResponseArea.jsx
 import React, { useState, useEffect } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useUser } from '@clerk/clerk-react';
+import rehypeRaw from "rehype-raw";
+
 
 const API_BASE_URL = 'http://127.0.0.1:5000';
 
@@ -32,10 +35,11 @@ function ResponseArea({ response, isFinalResponse, searchQuery }) {
       return;
     }
 
+    // Include searchQuery along with the other fields.
     const dataToPush = {
       content: displayResponse,
       userId: user.id,
-      searchQuery: searchQuery, // Include the original search query
+      searchQuery: searchQuery, // Sending the original search query to backend
       timestamp: new Date().toISOString()
     };
 
@@ -71,14 +75,19 @@ function ResponseArea({ response, isFinalResponse, searchQuery }) {
         <button 
           className={`dbbutton ${isStorageEnabled ? 'enabled' : 'disabled'}`}
           onClick={handleSubmit}
-          disabled={!isStorageEnabled}
         >
           Store Search Results
         </button>
       </div>
       <div className="markdown-content">
-        <ReactMarkdown 
+        <ReactMarkdown
           remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeRaw]} // Allows raw HTML inside Markdown
+          components={{
+            a: ({ node, ...props }) => (
+              <a target="_blank" rel="noopener noreferrer" {...props} />
+            ),
+          }}
         >
           {displayResponse}
         </ReactMarkdown>
