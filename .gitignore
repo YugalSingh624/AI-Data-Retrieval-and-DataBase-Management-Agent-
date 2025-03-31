@@ -2,4 +2,5 @@
 agents.db
 .venv
 node_modules
+venv
 

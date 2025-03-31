@@ -1,15 +1,14 @@
-// File: App.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { Search, Bot, Home, BookMarked, DollarSign, Sun, Moon } from 'lucide-react';
+import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
 import './App.css';
 import SearchBar from './components/SearchBar';
 import ResponseArea from './components/ResponseArea';
 import ToolCallsViewer from './components/ToolCallsViewer';
 import LoadingIndicator from './components/LoadingIndicator';
 import SavedResponsesPage from './components/SavedResponsesPage';
-import { SignedIn, SignedOut, SignInButton, UserButton, useUser } from "@clerk/clerk-react";
 
-// Base URL for the Flask backend
 const API_BASE_URL = 'http://127.0.0.1:5000';
 
 function App() {
@@ -18,9 +17,25 @@ function App() {
   const [toolCalls, setToolCalls] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [isDarkMode, setIsDarkMode] = useState(false);
   const eventSourceRef = useRef(null);
-
   const { user } = useUser();
+
+  // Initialize theme from localStorage
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    setIsDarkMode(savedTheme === 'dark');
+  }, []);
+
+  // Update theme in localStorage and body class
+  useEffect(() => {
+    document.body.className = isDarkMode ? 'dark-mode' : 'light-mode';
+    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
+
+  const toggleTheme = () => {
+    setIsDarkMode(!isDarkMode);
+  };
 
   const handleSearch = async (searchQuery) => {
     setQuery(searchQuery);
@@ -74,7 +89,6 @@ function App() {
     }
   };
 
-  // Check server connection on mount
   useEffect(() => {
     const checkServerConnection = async () => {
       try {
@@ -104,7 +118,6 @@ function App() {
     };
   }, []);
 
-  // Sync user data with backend
   useEffect(() => {
     const syncUserToBackend = async () => {
       if (user) {
@@ -135,61 +148,98 @@ function App() {
   }, [user]);
 
   return (
-    // Wrap the entire application in a Router
     <Router>
-      <div className="app-container">
-        <header>
-          <div className="auth-buttons">
-            <SignedOut>
-              <SignInButton className="cl-signIn-button" />
-            </SignedOut>
-            <SignedIn>
-              <UserButton className="cl-user-button" />
-            </SignedIn>
+      <div className={`app-container ${isDarkMode ? 'dark-mode' : 'light-mode'}`}>
+        <nav className="navbar">
+          <div className="navbar-container">
+            <div className="navbar-content">
+              <div className="navbar-brand">
+                <Bot className="brand-icon" size={32} />
+                <span className="brand-text">AI Search Assistant</span>
+              </div>
+              <div className="navbar-links">
+                <Link to="/" className="nav-link">
+                  <Home size={20} />
+                  <span>Home</span>
+                </Link>
+                <Link to="/saved-responses" className="nav-link">
+                  <BookMarked size={20} />
+                  <span>Saved</span>
+                </Link>
+                <button className="theme-toggle" onClick={toggleTheme}>
+                  {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+                  <span>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</span>
+                </button>
+                <div className="auth-buttons">
+                  <SignedOut>
+                    <SignInButton className="cl-signIn-button" />
+                  </SignedOut>
+                  <SignedIn>
+                    <UserButton className="cl-user-button" />
+                  </SignedIn>
+                </div>
+                <button className="upgrade-button">
+                  <DollarSign size={16} />
+                  <span>Upgrade</span>
+                </button>
+              </div>
+            </div>
           </div>
-          <h1>AI Search Assistant</h1>
-          <p>Powered by multiple search engines and web scraping</p>
+        </nav>
 
-          {/* Simple navigation to switch between home and saved responses */}
-          <nav>
-            <Link to="/" style={{ marginRight: '10px' }}>Home</Link>
-            <Link to="/saved-responses">Saved Responses</Link>
-          </nav>
-        </header>
-
-        {/* Define Routes for "/" and "/saved-responses" */}
         <Routes>
-          {/* Home route ("/") renders your existing main content */}
           <Route
             path="/"
             element={
-              <main>
-                <SearchBar onSearch={handleSearch} isLoading={isLoading} />
+              <main className="main-content">
+                <div className="hero">
+                  <h1 className="hero-title">Your AI-Powered Search Assistant</h1>
+                  <p className="hero-subtitle">
+                    Powered by multiple search engines and web scraping technology to provide comprehensive results
+                  </p>
+                </div>
+
+                <div className="search-container">
+                  <SearchBar onSearch={handleSearch} isLoading={isLoading} />
+                </div>
+
                 {isLoading && <LoadingIndicator />}
+                
                 {error && (
                   <div className="error-message">
                     <p>{error}</p>
                   </div>
                 )}
+
                 <div className="content-container">
-                  {/* Pass the original search query to ResponseArea */}
                   <ResponseArea response={cleanedResponse} isFinalResponse={true} searchQuery={query} />
                   {toolCalls.length > 0 && <ToolCallsViewer toolCalls={toolCalls} />}
+                </div>
+
+                <div className="status-container">
+                  <div className="status-content">
+                    <div className="status-item">
+                      <div className="status-dot"></div>
+                      <span>Using Flask backend with multiple AI-powered search agents</span>
+                    </div>
+                    <div className="status-item">
+                      <div className="status-dot"></div>
+                      <span>Connected to: {API_BASE_URL}</span>
+                    </div>
+                  </div>
                 </div>
               </main>
             }
           />
 
-          {/* Route for "/saved-responses" */}
           <Route
             path="/saved-responses"
             element={<SavedResponsesPage />}
           />
         </Routes>
 
-        <footer>
-          <p>Using Flask backend with multiple AI-powered search agents</p>
-          <p>Connected to: {API_BASE_URL}</p>
+        <footer className="footer">
+          <p>&copy; 2025 AI Search Assistant. All rights reserved.</p>
         </footer>
       </div>
     </Router>

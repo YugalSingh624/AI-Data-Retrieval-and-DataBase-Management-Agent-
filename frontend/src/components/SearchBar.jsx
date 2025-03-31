@@ -1,32 +1,36 @@
-// File: components/SearchBar.jsx
 import React, { useState } from 'react';
+import { Search } from 'lucide-react';
 
 function SearchBar({ onSearch, isLoading }) {
-  const [inputValue, setInputValue] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (inputValue.trim() && !isLoading) {
-      onSearch(inputValue.trim());
+    if (searchQuery.trim() && !isLoading) {
+      onSearch(searchQuery);
     }
   };
 
   return (
-    <div className="search-bar">
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          placeholder="Ask me anything..."
-          disabled={isLoading}
-        />
-        <button type="submit" disabled={isLoading || !inputValue.trim()}>
-          {isLoading ? 'Searching...' : 'Search'}
-        </button>
-      </form>
-    </div>
+    <form onSubmit={handleSubmit} className="search-wrapper">
+      <input
+        type="text"
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+        placeholder="Ask me anything..."
+        className="search-input"
+        disabled={isLoading}
+      />
+      <button 
+        type="submit" 
+        className="search-button"
+        disabled={isLoading || !searchQuery.trim()}
+      >
+        <Search size={20} />
+        <span>Search</span>
+      </button>
+    </form>
   );
 }
 
-export default SearchBar;
+export default SearchBar

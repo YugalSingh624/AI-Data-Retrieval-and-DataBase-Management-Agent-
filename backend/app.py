@@ -27,9 +27,14 @@ search_instructions = [
     '''CRITICAL WORKFLOW FOR INFORMATION RETRIEVAL:
     1. Use multiple search engines to gather latest information,
     2. Cross-reference and validate data from at least 3 different sources,
-    3. Combine web search results with contextual LLM knowledge,''',
+    3. Combine web search results with contextual LLM knowledge,
+    4. Use Crawl4ai for earch query for deep extraction of infromation related to every query,
+    5. Always provide sources for your information,
+    6. When you find relevant websites, use web scraping tools to extract detailed information,
+    7. Format information in a consistent, readable manner,
+    8. Show the information in table which is possible to be shown in table''',
     
-    '''For school or college queries, create a comprehensive table with:
+    '''For school or college queries, mandatorily create a comprehensive table with:
     - Institution Name (Latest Official Name),
     - Established Year (Verified from Multiple Sources),
     - Location (Current, Precise Location),
@@ -38,8 +43,8 @@ search_instructions = [
     - Annual Tuition Fees (Current Academic Year),
     - Top Programs Offered (Updated Curriculum),
     - Accreditation Status (Most Recent Certification),
-    - Average Campus Placement Rate (Latest Available Data),
-    - Recent Notable Achievements (Within Last 2 Years),
+    - Average Campus Placement Rate ( only for colleges and Latest Available Data),
+    - Recent Notable Achievements in detail (Within Last 2 Years),
     - Campus Facilities (Current Infrastructure)
     and also try to include other relevant information apart from table content''',
     
@@ -71,48 +76,26 @@ search_instructions = [
     - If web search provides specific data points, integrate them,
     - Use LLM to provide deeper analysis, historical context,
     - Highlight differences between web data and existing knowledge,
-    - Provide a comprehensive, nuanced response'''
+    - Provide a comprehensive, nuanced response''',
+
+    '''MANDATORY INSTRUCTION FOR ALL SCHOOL QUERIES:
+    You MUST return ALL data points for the comprehensive table including:
+    - Institution Name (Latest Official Name),
+    - Established Year (Verified from Multiple Sources),
+    - Location (Current, Precise Location),
+    - Type (Public/Private - Most Recent Status),
+    - Total Student Enrollment (Most Recent Academic Year),
+    - Annual Tuition Fees (Current Academic Year),
+    - Top Programs Offered (Updated Curriculum),
+    - Accreditation Status (Most Recent Certification),
+    - Average Campus Placement Rate (Latest Available Data),
+    - Recent Notable Achievements (Within Last 2 Years),
+    - Campus Facilities (Current Infrastructure)
+    
+    If any data point cannot be found, indicate with "Data not available" but NEVER omit columns''',
 ]
 
-# Helper function to determine if a query references future events or recent topics
-def detect_future_or_recent(query):
-    """Determine if a query references future events, recent topics, or dates after 2023"""
-    query_lower = query.lower()
-    
-    # Get current year and create year range to check
-    current_year = datetime.now().year
-    future_years = [str(year) for year in range(2023, current_year + 10)]
-    
-    # Check for years in the query
-    has_future_year = any(year in query_lower for year in future_years)
-    
-    # Look for date patterns (e.g., 2025, 2024-2025, etc.)
-    year_pattern = r'20(2[3-9]|[3-9][0-9])'  # Matches years 2023-2099
-    has_year_match = re.search(year_pattern, query_lower) is not None
-    
-    # Check for terms indicating recency or future events
-    recency_terms = [
-        "recent", "latest", "new", "current", "update", "today", "this month", 
-        "this year", "next year", "upcoming", "future", "scheduled", 
-        "announced", "released", "planned", "will happen", "expected"
-    ]
-    has_recency_terms = any(term in query_lower for term in recency_terms)
-    
-    # Sports events often mentioned in future/recent contexts
-    sports_terms = ["champions trophy", "world cup", "olympics", "championship", 
-                    "tournament", "match", "game", "series", "season"]
-    has_sports_terms = any(term in query_lower for term in sports_terms)
-    
-    # Add specific keywords for schools and companies
-    school_terms = ["university", "college", "school", "campus", "institution"]
-    company_terms = ["company", "corporation", "startup", "business", "enterprise"]
-    
-    has_school_terms = any(term in query_lower for term in school_terms)
-    has_company_terms = any(term in query_lower for term in company_terms)
-    
-    # Return True if any condition is met
-    return (has_future_year or has_year_match or 
-            (has_recency_terms and (has_sports_terms or has_school_terms or has_company_terms)))
+# Removed the detect_future_or_recent function since we'll use search tools for every query
 
 # Enhanced Google Search agent with web scraping capabilities
 search_agent_GoogleSearch = Agent(
@@ -159,6 +142,26 @@ search_agent_BaiduSearch = Agent(
 # Enhanced main agent instructions for information fusion
 current_year = datetime.now().year
 main_agent_instructions = [
+    '''MANDATORY TABLE FORMAT INSTRUCTION FOR ALL SCHOOL/COLLEGE QUERIES:
+    When ANY query involves a school, college, or educational institution, you MUST create a comprehensive table with EXACTLY these columns:
+    
+    | Institution Name | Established Year | Location | Type | Total Student Enrollment | Annual Tuition Fees | Top Programs Offered | Accreditation Status | Average Campus Placement Rate | Recent Notable Achievements | Campus Facilities |
+    
+    NO OTHER TABLE FORMAT IS ACCEPTABLE for educational institution queries. Do not deviate from this format.
+    Every column must be populated - use "Data not available" if information cannot be found.
+    
+    After the table, you may provide additional information in paragraph form.''',
+    
+    '''CRITICAL WORKFLOW FOR INFORMATION RETRIEVAL:
+        1. Use multiple search engines to gather latest information,
+        2. Cross-reference and validate data from at least 3 different sources,
+        3. Combine web search results with contextual LLM knowledge,
+        4. Use Crawl4ai for each query for deep extraction of information related to every query,
+        5. Always provide sources for your information,
+        6. When you find relevant websites, use web scraping tools to extract detailed information,
+        7. Format information in a consistent, readable manner,
+        8. Show the information in table which is possible to be shown in table''',
+    
     # Information quality and citation
     "Always provide accurate information with clear attribution to sources",
     "Include direct links to source websites when available",
@@ -179,16 +182,15 @@ main_agent_instructions = [
     
     # Domain-specific organization
     "For companies: Structure as Company Overview, Products/Services, Leadership, Financials, Recent News",
-    "For educational institutions: Present Programs, Admissions, Rankings, Campus Life, Faculty Highlights",
+    "For educational institutions: Always use the MANDATORY table format specified at the top",
     "For locations/venues: Organize as Address, Opening Hours, Offerings, Reviews, Contact Information",
     "For products: Show Features, Pricing, Availability, Comparisons, Customer Reviews",
     "For events: Include Dates, Location, Participants, Schedule, Registration/Ticket Information",
     
-    # Recency handling (critical)
-    f"MANDATORY: For ANY query referencing dates from 2023 onwards, current events, or recent developments, ALWAYS use search tools",
-    f"For sports events, tournaments, competitions, championships occurring from {current_year-1} onwards, ALWAYS use search tools",
-    "Never rely on built-in knowledge for time-sensitive information like prices, schedules, rankings, or statistics",
-    "When terms like 'current', 'latest', 'recent', 'upcoming', 'scheduled', or 'announced' appear in queries, always search",
+    # Recency handling (modified to always use search tools)
+    "MANDATORY: For ALL queries, ALWAYS use search tools to retrieve the most up-to-date information",
+    "Never rely solely on built-in knowledge for any information",
+    "Always verify information through search tools regardless of query content",
     
     # Response quality
     "Begin responses with a direct, concise answer to the query before providing supporting details",
@@ -207,47 +209,105 @@ main_agent_instructions = [
     "Clearly indicate which search engines were used to retrieve information",
     "Note when information comes from web scraping versus search results",
     "Acknowledge information gaps when searches don't yield complete answers",
-    "Always double-check calculations and factual claims before presenting them"
+    "Always double-check calculations and factual claims before presenting them",
+    "Do not append the query with the year, on your own, but you are allowed to do other changes for functionality"
 ]
 
-# System message template for guiding the agent
+# Modified system message template to ensure search tools are used for every query
 system_message_template = """
-You are an advanced information retrieval system. Before responding to ANY query, follow this protocol EXACTLY:
+You are an advanced information retrieval system. For EVERY query, follow this protocol EXACTLY:
 
-1. FIRST, analyze if the query references:
-   - Any year from 2023 onwards
-   - Recent or upcoming events
-   - Current status/information that may have changed after 2023
-   - Sports events, competitions, or tournaments (especially when timing is unclear)
-
-2. For queries matching ANY of these criteria, you MUST:
-   - IMMEDIATELY use your search tools - DO NOT rely on your pre-trained knowledge
+1. You MUST use your search tools for ALL queries to provide the most current and accurate information.
+   - Do not rely solely on your pre-trained knowledge, even for seemingly general or historical questions
    - NEVER state "As of my last update" or similar phrases
-   - NEVER guess about post-2023 information based on patterns or expectations
+   - ALWAYS verify information through search, regardless of the query content
 
-3. For the specific query: "{user_query}"
-   - You MUST determine if it matches the criteria in step 1
-   - If YES → Use search tools immediately
-   - If NO → You may use your general knowledge, but still search when uncertain
+2. For the query: "{user_query}"
+   - You MUST use search tools to gather current information
+   - Combine search results with your knowledge for comprehensive answers
+   - Verify ALL facts, figures, and statements through search
 
-4. Remember: For topics like "Champions Trophy 2025" or similar future/recent events, you MUST search rather than stating what you believe based on your training.
+3. Use multiple search engines when appropriate to cross-reference information:
+   - Google Search for general global queries
+   - Baidu Search for Asia-specific information
+   - DuckDuckGo for privacy-sensitive topics
 
-5. "Show the information in table which is possible to be shown in table"
+4. CRITICAL: For ANY school or college queries, you MUST create a table with EXACTLY these columns in this EXACT order:
+   | Institution Name | Established Year | Location | Type | Total Student Enrollment | Annual Tuition Fees | Top Programs Offered | Accreditation Status | Average Campus Placement Rate | Recent Notable Achievements | Campus Facilities |
+   
+   - Institution Name: Latest official name
+   - Established Year: Verified from multiple sources
+   - Location: Current, precise location
+   - Type: Public/Private - most recent status
+   - Total Student Enrollment: Most recent academic year
+   - Annual Tuition Fees: Current academic year
+   - Top Programs Offered: Updated curriculum
+   - Accreditation Status: Most recent certification
+   - Average Campus Placement Rate: Latest available data (only for colleges)
+   - Recent Notable Achievements: Within last 2 years
+   - Campus Facilities: Current infrastructure
+   
+   For ANY missing information, write "Data not available" in the cell. NEVER omit columns or change their order.
+
+5. After searching, you must always synthesize a complete response that integrates all information sources with the COMPLETE table structure.
+
+6. FINAL CHECK: Before submitting your response for school/college queries, verify that your table has ALL 11 REQUIRED COLUMNS in the EXACT order specified above.
 """
 
-class EnhancedAgent(Agent):
-    def run(self, message, **kwargs):
-        # Check if the message references future events or recent topics
-        if detect_future_or_recent(message):
-            # Modify the system message to force search for recent/future topics
-            enriched_message = f"IMPORTANT: This question is about a future event or references dates after 2023. YOU MUST USE SEARCH TOOLS instead of your built-in knowledge. Query: {message}"
-            return super().run(enriched_message, **kwargs)
-        return super().run(message, **kwargs)
+def validate_education_query_response(response_text, query):
+    # Simple detection for education-related queries
+    education_keywords = ["school", "college", "university", "institute", "campus", 
+                         "education", "academic", "student", "faculty", "course"]
+    
+    is_education_query = any(keyword.lower() in query.lower() for keyword in education_keywords)
+    
+    if not is_education_query:
+        return response_text
+    
+    # Check if the response has the required columns
+    required_columns = [
+        "Institution Name", "Established Year", "Location", "Type", 
+        "Total Student Enrollment", "Annual Tuition Fees", "Top Programs Offered",
+        "Accreditation Status", "Average Campus Placement Rate", 
+        "Recent Notable Achievements", "Campus Facilities"
+    ]
+    
+    # If there's a table but missing required columns, add a correction note
+    if "| Institution Name |" not in response_text or len(required_columns) > response_text.count("|") / 2:
+        correction_note = """
+        
+**NOTE: The table provided is incomplete. A comprehensive educational institution table should include the following columns:**
 
-agent_team = EnhancedAgent(
+| Institution Name | Established Year | Location | Type | Total Student Enrollment | Annual Tuition Fees | Top Programs Offered | Accreditation Status | Average Campus Placement Rate | Recent Notable Achievements | Campus Facilities |
+
+Please request more detailed information if needed.
+        """
+        return response_text + correction_note
+    
+    return response_text
+
+
+
+
+
+
+# Modified agent to use search tools for every query
+class AlwaysSearchAgent(Agent):
+    def run(self, message, **kwargs):
+        # Modified instruction to emphasize preserving the original query
+        enriched_message = f"IMPORTANT: YOU MUST USE SEARCH TOOLS and web scraping tools for this query but DO NOT add year on your own, but you are allowed to do other changes for functionality. Query: {message}"
+        response = super().run(enriched_message, **kwargs)
+        
+        # If it's not streaming, post-process the response for education queries
+        if not kwargs.get("stream", False):
+            response = validate_education_query_response(response, message)
+        
+        return response
+
+agent_team = AlwaysSearchAgent(
     name="Information Research Team",
     model=Groq(id="deepseek-r1-distill-llama-70b"),
-    role="Team coordinator that manages information retrieval across multiple search platforms and web scraping tools, can answer general knowledge questions, and ensures recent information is verified",
+    role="Team coordinator that manages information retrieval across multiple search platforms and web scraping tools for ALL queries",
     team=[search_agent_GoogleSearch, search_agent_BaiduSearch, search_agent_DuckDuckGO],
     instructions=main_agent_instructions,
     storage=SqlAgentStorage(table_name="information_research_team", db_file="agents.db"),
@@ -262,11 +322,6 @@ agent_team = EnhancedAgent(
 
 
 # Change above code only
-
-
-
-
-
 
 
 
@@ -431,11 +486,36 @@ def stream_response():
                 - No unnecessary concatenation of words
                 - Use markdown formatting where appropriate
                 
+                For school or college information, ensure the table has EXACTLY these columns in this order:
+                | Institution Name | Established Year | Location | Type | Total Student Enrollment | Annual Tuition Fees | Top Programs Offered | Accreditation Status | Average Campus Placement Rate | Recent Notable Achievements | Campus Facilities |
+                
                 Text to format: ''' + all_chunks
             )
             
             # Final processed data
             final_data = response.text
+            
+            # Validate education query responses
+            education_keywords = ["school", "college", "university", "institute", "campus", 
+                                "education", "academic", "student", "faculty", "course"]
+            is_education_query = any(keyword.lower() in query.lower() for keyword in education_keywords)
+            
+            if is_education_query:
+                required_columns = [
+                    "Institution Name", "Established Year", "Location", "Type", 
+                    "Total Student Enrollment", "Annual Tuition Fees", "Top Programs Offered",
+                    "Accreditation Status", "Average Campus Placement Rate", 
+                    "Recent Notable Achievements", "Campus Facilities"
+                ]
+                
+                missing_columns = []
+                for col in required_columns:
+                    if col not in final_data:
+                        missing_columns.append(col)
+                
+                if missing_columns:
+                    correction_note = "\n\n**NOTE: The table is missing these required columns: " + ", ".join(missing_columns) + ". Please request more detailed information if needed.**"
+                    final_data += correction_note
             
             # Send the final processed data
             processed_chunk = json.dumps({"chunk": final_data})
@@ -648,4 +728,4 @@ def delete_response():
 
 
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run()
