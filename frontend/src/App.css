@@ -46,6 +46,11 @@
   --gradient-end: var(--gradient-end-light);
   --input-bg: var(--input-bg-light);
   --button-shadow: var(--button-shadow-light);
+  --white: #ffffff;
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --bg-color: #f5f5f5;
+  --code-bg: #f5f5f5;
+  --table-border: #ddd;
 }
 
 .dark-mode {
@@ -53,8 +58,8 @@
   --primary-hover: var(--primary-hover-dark);
   --bg-primary: var(--bg-primary-dark);
   --bg-secondary: var(--bg-secondary-dark);
-  --text-primary: #ffffff; /* Ensuring pure white text */
-  --text-secondary: #e2e8f0; /* Slightly lighter than white for contrast */
+  --text-primary: var(--text-primary-dark);
+  --text-secondary: var(--text-secondary-dark);
   --border-color: var(--border-dark);
   --card-bg: var(--card-bg-dark);
   --shadow: var(--shadow-dark);
@@ -62,6 +67,11 @@
   --gradient-end: var(--gradient-end-dark);
   --input-bg: var(--input-bg-dark);
   --button-shadow: var(--button-shadow-dark);
+  --white: var(--bg-secondary-dark);
+  --shadow-color: rgba(0, 0, 0, 0.3);
+  --bg-color: #2d3748;
+  --code-bg: #2d3748;
+  --table-border: #4a5568;
 }
 
 
@@ -188,18 +198,19 @@
 .tool-calls-viewer {
   width: 90%;
   margin: 20px auto; /* 20px margin top/bottom; auto centers horizontally */
-  background-color: var(--white);
+  background-color: var(--card-bg);
   border-radius: 8px;
   box-shadow: 0 2px 10px var(--shadow-color);
   padding: 20px;
+  color: var(--text-primary); /* Added to ensure text is visible in dark mode */
 }
 
 .response-area h2, 
 .tool-calls-viewer h2 {
   font-size: 1.5rem;
   margin-bottom: 15px;
-  color: var(--primary-color);
-  border-bottom: 1px solid #eee;
+  color: var(--text-primary); /* Changed to use theme color */
+  border-bottom: 1px solid var(--border-color); /* Changed to use theme border color */
   padding-bottom: 10px;
   word-wrap: break-word;
 }
@@ -210,6 +221,7 @@ body {
   margin: 0;
   font-family: system-ui, -apple-system, sans-serif;
   transition: background-color 0.3s ease, color 0.3s ease;
+  color: var(--text-primary); /* Added to ensure text is visible */
 }
 
 .app-container {
@@ -575,6 +587,7 @@ body {
   border: 1px solid var(--border-color);
   transition: all 0.3s ease;
   overflow-x: auto; /* Enables horizontal scroll when needed */
+  color: var(--text-primary); /* Added to ensure text visibility */
 }
 
 /* Ensuring the entire response area can scroll */
@@ -588,7 +601,7 @@ body {
 }
 
 .response-area h2 {
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border-color); /* Changed to use theme border color */
   padding-bottom: 10px;
   word-wrap: break-word;
   color: var(--text-primary);
@@ -604,27 +617,31 @@ body {
   overflow-wrap: break-word;
   overflow-x: auto; /* Allow scrolling for wide content */
   max-width: 100%;
+  color: var(--text-primary); /* Added to ensure text visibility */
 }
 
 /* Ensure all inline elements wrap correctly */
 .markdown-content p {
   margin-bottom: 15px;
+  color: var(--text-primary); /* Added to ensure text visibility */
 }
 
 /* Code Block & Table Styles */
 .markdown-content pre {
-  background-color: #f5f5f5;
+  background-color: var(--code-bg); /* Changed to use theme variable */
   padding: 15px;
   border-radius: 4px;
   overflow-x: auto;
   max-width: 100%;
   white-space: pre-wrap;
+  color: var(--text-primary); /* Added to ensure text visibility */
 }
 
 .markdown-content code {
   font-family: monospace;
   word-wrap: break-word;
   overflow-wrap: break-word;
+  color: var(--text-primary); /* Added to ensure text visibility */
 }
 
 /* Allow horizontal scroll if table is too wide */
@@ -644,14 +661,15 @@ body {
 
 .markdown-content th, 
 .markdown-content td {
-  border: 1px solid #ddd;
+  border: 1px solid var(--table-border); /* Changed to use theme variable */
   padding: 8px 12px;
   text-align: left;
   word-wrap: break-word;
+  color: var(--text-primary); /* Added to ensure text visibility */
 }
 
 .markdown-content th {
-  background-color: var(--bg-color);
+  background-color: var(--bg-color); /* Changed to use theme variable */
 }
 
 /* Tool Calls List */
@@ -677,6 +695,7 @@ body {
   align-items: center;
   cursor: pointer;
   transition: background-color 0.3s ease;
+  color: var(--text-primary); /* Added to ensure text visibility */
 }
 
 .tool-call-header:hover {
@@ -696,6 +715,7 @@ body {
 .tool-call-details {
   padding: 1rem;
   border-top: 1px solid var(--border-color);
+  color: var(--text-primary); /* Added to ensure text visibility */
 }
 
 
@@ -705,6 +725,7 @@ body {
   max-width: 800px;
   margin: 0 auto;
   padding: 2rem;
+  color: var(--text-primary); /* Added to ensure text visibility */
 }
 
 .responses-list {
@@ -720,6 +741,7 @@ body {
   padding: 1.5rem;
   transition: all 0.3s ease;
   cursor: pointer;
+  color: var(--text-primary); /* Added to ensure text visibility */
 }
 
 .response-card:hover {
@@ -765,12 +787,13 @@ body {
   overflow-y: auto;
   box-shadow: var(--shadow);
   border: 1px solid var(--border-color);
+  color: var(--text-primary); /* Added to ensure text visibility */
 }
 
 .modal-header {
   position: sticky;
   top: 0;
-  background-color: var(--card-bg);
+  background-color: transparent;
   padding: 1rem;
   display: flex;
   justify-content: flex-end;
