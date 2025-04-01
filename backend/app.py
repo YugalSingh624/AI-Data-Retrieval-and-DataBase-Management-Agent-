@@ -111,8 +111,8 @@ search_agent_GoogleSearch = Agent(
     ],
     description="You retrieve accurate and up-to-date information from Google Search results and can scrape website content when needed. You can also answer general knowledge questions and are particularly valuable for recent information.",
     instructions=search_instructions,
-    stream=True,
-    show_tool_calls=True
+    stream=False,
+    show_tool_calls=False
 )
 
 # Enhanced DuckDuckGo agent with web scraping capabilities
@@ -125,8 +125,8 @@ search_agent_DuckDuckGO = Agent(
     ],
     description="You retrieve accurate and up-to-date information from DuckDuckGo search results and can scrape website content when needed. You can also answer general knowledge questions and are particularly good at privacy-respecting searches.",
     instructions=search_instructions,
-    stream=True,
-    show_tool_calls=True
+    stream=False,
+    show_tool_calls=False
 )
 
 # Enhanced Baidu Search agent with web scraping capabilities
@@ -139,8 +139,8 @@ search_agent_BaiduSearch = Agent(
     ],
     description="You retrieve accurate and up-to-date information from Baidu search results and can scrape website content when needed - particularly valuable for information about Asian entities and general knowledge related to Asia.",
     instructions=search_instructions,
-    stream=True,
-    show_tool_calls=True
+    stream=False,
+    show_tool_calls=False
 )
 
 # Enhanced main agent instructions for information fusion
@@ -315,10 +315,10 @@ agent_team = AlwaysSearchAgent(
     team=[search_agent_GoogleSearch, search_agent_BaiduSearch, search_agent_DuckDuckGO],
     instructions=main_agent_instructions,
     storage=SqlAgentStorage(table_name="information_research_team", db_file="agents.db"),
-    add_history_to_messages=True,
-    stream=True,
-    show_tool_calls=True,
-    markdown=True,
+    add_history_to_messages=False,
+    stream=False,
+    show_tool_calls=False,
+    markdown=False,
     system_message=system_message_template.format(user_query="Example query")
 )
 
