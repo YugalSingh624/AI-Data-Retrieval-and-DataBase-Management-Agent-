@@ -20,7 +20,11 @@ load_dotenv()
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 app = Flask(__name__)
-CORS(app)  # This will enable CORS for all routes
+CORS(app, resources={r"/api/*": {
+    "origins": ["http://localhost:3000"],
+    "methods": ["GET", "POST", "OPTIONS"],
+    "allow_headers": ["Content-Type", "Authorization"]
+}})  # This will enable CORS for all routes
 
 # Enhanced instructions for search and scraping agents with specific focus on schools and companies
 search_instructions = [

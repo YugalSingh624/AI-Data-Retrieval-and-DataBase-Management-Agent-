@@ -9,7 +9,7 @@ import ToolCallsViewer from './components/ToolCallsViewer';
 import LoadingIndicator from './components/LoadingIndicator';
 import SavedResponsesPage from './components/SavedResponsesPage';
 
-const API_BASE_URL = 'http://127.0.0.1:5000';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 function App() {
   const [query, setQuery] = useState('');
@@ -78,7 +78,7 @@ function App() {
 
       eventSourceRef.current.onerror = (e) => {
         console.error('EventSource error:', e);
-        setError('Connection error with the server. Please check if the Flask backend is running at http://127.0.0.1:5000');
+        setError('Connection error with the server. Please check if the Flask backend is running at https://ai-data-retrieval-and-database.onrender.com');
         setIsLoading(false);
         eventSourceRef.current.close();
       };
