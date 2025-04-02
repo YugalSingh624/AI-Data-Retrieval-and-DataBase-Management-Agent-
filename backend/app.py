@@ -22,7 +22,7 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 app = Flask(__name__)
 CORS(app, resources={r"/api/*": {
     "origins": ["https://ai-powered-search-assistant-eight.vercel.app"],
-    "methods": ["GET", "POST", "OPTIONS"],
+    "methods": ["GET", "POST", "OPTIONS", "DELETE", "PUT"],
     "allow_headers": ["Content-Type", "Authorization"]
 }})  # This will enable CORS for all routes
 
