@@ -15,6 +15,8 @@ from flask_cors import CORS
 from bson import ObjectId
 from pymongo import MongoClient
 
+# It's a point do not CTRL Z after this
+
 load_dotenv()
 
 GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -26,20 +28,35 @@ CORS(app, resources={r"/api/*": {
     "allow_headers": ["Content-Type", "Authorization"]
 }})  # This will enable CORS for all routes
 
+# Get current date information for more accurate recent news and achievements
+current_year = datetime.now().year
+current_month = datetime.now().month
+current_date_str = datetime.now().strftime("%Y-%m-%d")
+
 # Enhanced instructions for search and scraping agents with specific focus on schools and companies
 search_instructions = [
     '''CRITICAL WORKFLOW FOR INFORMATION RETRIEVAL:
     1. Use multiple search engines to gather latest information,
     2. Cross-reference and validate data from at least 3 different sources,
-    3. Combine web search results with contextual LLM knowledge,
-    4. Use Crawl4ai for earch query for deep extraction of infromation related to every query,
-    5. Always provide sources for your information,
+    3. present information that cannot be verified with search results with a tag not verified,
+    4. Use Crawl4ai for each query for deep extraction of information related to every query,
+    5. ALWAYS provide direct source URLs and attribution for every piece of information,
     6. When you find relevant websites, use web scraping tools to extract detailed information,
     7. Format information in a consistent, readable manner,
-    8. Show the information in table which is possible to be shown in table''',
+    8. Show the information in table which is possible to be shown in table,
+    ''',
     
-    '''For school or college queries, mandatorily create a comprehensive table with:
+    '''MANDATORY TABLE FIELDS FOR ALL QUERIES:
+    For ANY entity (schools, colleges, companies, organizations, locations), you MUST include these fields in your table:
+    - Official Website of schools/colleges/companies/organizations/locations
+    - Contact Details of schools/colleges/companies/organizations/locations
+    
+    These fields are REQUIRED''',
+    
+    f'''For school or college queries, mandatorily create a comprehensive table with:
     - Institution Name (Latest Official Name),
+    - Official Website (of school or college),
+    - Contact Details (of school or college),
     - Established Year (Verified from Multiple Sources),
     - Location (Current, Precise Location),
     - Type (Public/Private - Most Recent Status),
@@ -47,13 +64,16 @@ search_instructions = [
     - Annual Tuition Fees (Current Academic Year),
     - Top Programs Offered (Updated Curriculum),
     - Accreditation Status (Most Recent Certification),
-    - Average Campus Placement Rate ( only for colleges and Latest Available Data),
-    - Recent Notable Achievements in detail (Within Last 2 Years),
+    - Average Campus Placement Rate (This column is only for colleges),
+    - Recent Notable Achievements in detail (Within Last 6 MONTHS - focusing on {current_year} data),
     - Campus Facilities (Current Infrastructure)
-    and also try to include other relevant information apart from table content''',
     
-    '''For company queries, create a comprehensive table with:
+    Always include direct source URLs for each piece of information.''',
+    
+    f'''For company queries, create a comprehensive table with:
     - Company Name (Latest Official Name),
+    - Official Website ,
+    - Contact Details,
     - Founded Year (Verified Date),
     - Headquarters Location (Current Address),
     - Industry Sector (Most Recent Classification),
@@ -62,29 +82,50 @@ search_instructions = [
     - Average Salary Range (Current Market Data),
     - Top Job Roles (Updated Job Market Trends),
     - Company Culture Rating (Recent Employee Feedback),
-    - Recent Major News/Developments (Last 12 Months)",
+    - Recent Major News/Developments (Last 3 MONTHS only - focusing on {current_year} data),
     - Key Products/Services (Current Offerings)
-    and also try to include other relevant information apart from table content ''',
     
-    '''ADVANCED RETRIEVAL GUIDELINES:
-    - Prioritize official websites, recent news articles, verified review platforms,
-    - Use web scraping to extract detailed, current information,
-    - When information conflicts, present multiple perspectives,
-    - Indicate source reliability and recency of each data point,
-    - Use markdown table formatting for clear presentation,
-    - Include sources for each piece of information,
-    - Provide context beyond raw data''',
+    Always include direct source URLs for each piece of information.''',
+    
+    '''ANTI-HALLUCINATION GUIDELINES:
+    - present information that cannot be verified with search results with a tag Not Verified
+    - ALWAYS provide source URLs for each piece of information
+    - Include the date when the information was retrieved
+    - For conflicting information, present all perspectives with source links
+    - Do not try to fill gaps with educated guesses
+    - Present exact quotes from sources when possible
+    - Indicate confidence level for each piece of information (High/Medium/Low)
+    - Use phrases like "According to [source]..." rather than presenting information as definitive facts''',
     
     '''CRITICAL FUSION INSTRUCTION:
-    ALWAYS combine web search results with LLM's contextual knowledge,
-    - If web search provides specific data points, integrate them,
-    - Use LLM to provide deeper analysis, historical context,
-    - Highlight differences between web data and existing knowledge,
-    - Provide a comprehensive, nuanced response''',
+    - Only combine web search results with LLM's contextual knowledge when search results are sparse,
+    - If web search provides specific data points, rely primarily on these verified points,
+    - Use LLM knowledge ONLY to organize and structure information, not to supplement it,
+    - Highlight any discrepancies between search results and existing knowledge,
+    - When in doubt, trust the search results over pre-existing knowledge''',
 
-    '''MANDATORY INSTRUCTION FOR ALL SCHOOL QUERIES:
+    f'''MANDATORY INSTRUCTION FOR ALL SCHOOL QUERIES:
     You MUST return ALL data points for the comprehensive table including:
     - Institution Name (Latest Official Name),
+    - Official Website (of that school),
+    - Contact Details (of that school),
+    - Established Year (Verified from Multiple Sources),
+    - Location (Current, Precise Location),
+    - Type (Public/Private - Most Recent Status),
+    - Total Student Enrollment (Most Recent Academic Year),
+    - Annual Tuition Fees (Current Academic Year),
+    - Top Programs Offered (Updated Curriculum),
+    - Accreditation Status (Most Recent Certification),
+    - Recent Notable Achievements (Within Last 6 MONTHS - focusing on {current_year} data only),
+    - Campus Facilities (Current Infrastructure)
+    
+    If any data point cannot be found, indicate with "Data not available" but NEVER omit columns''',
+
+    f'''MANDATORY INSTRUCTION FOR ALL COLLEGES OR UNIVERSITIES QUERIES:
+    You MUST return ALL data points for the comprehensive table including:
+    - Institution Name (Latest Official Name),
+    - Official Website (of that college or universities),
+    - Contact Details (of that college or universities),
     - Established Year (Verified from Multiple Sources),
     - Location (Current, Precise Location),
     - Type (Public/Private - Most Recent Status),
@@ -93,13 +134,65 @@ search_instructions = [
     - Top Programs Offered (Updated Curriculum),
     - Accreditation Status (Most Recent Certification),
     - Average Campus Placement Rate (Latest Available Data),
-    - Recent Notable Achievements (Within Last 2 Years),
+    - Recent Notable Achievements (Within Last 6 MONTHS - focusing on {current_year} data only),
     - Campus Facilities (Current Infrastructure)
     
     If any data point cannot be found, indicate with "Data not available" but NEVER omit columns''',
+    
+    '''SOURCE ATTRIBUTION REQUIREMENTS:
+    After the main table, you MUST include a "Sources" section that follows these rules:
+    
+    1. List every source used for the information with:
+       - Full URL of the source website
+       - Date the page was last accessed
+       - Brief description of what information was obtained from this source
+       
+    2. For each piece of information in the table, indicate in brackets which source it came from
+       - Example: "Annual Revenue: $2.5 million [Source 3]"
+       - This allows users to verify the information themselves
+    
+    3. For conflicting information, include all sources that provided different data points
+       - Example: "Employee Count: 500 [Source 1] or 550 [Source 2]"''',
+    
+    f'''CRITICAL NEWS SECTION REQUIREMENTS:
+    For ALL queries about any entity, you MUST include a "Recent News" section that follows these rules:
+    
+    1. RECENCY: Search specifically for news published within the LAST 3 MONTHS ONLY, using date-specific search terms
+       - Example search: "[entity name] news {current_year}" or "[entity name] recent news last 3 months"
+       - Use specific date ranges in your searches (e.g., "after:{current_year}-{current_month-3}-01")
+       - Use Crawl4ai to extract news sections from the entity's official website
+       - Prioritize news from the most recent month when available
+       - Do NOT include any news from previous years unless absolutely nothing from {current_year} is available
+    
+    2. BALANCE: You MUST include BOTH positive and negative news when available
+       - Include at least 1 positive development (achievements, growth, awards)
+       - Include at least 1 critical or challenging news item (controversies, setbacks, criticisms)
+       - If only positive or only negative news exists, note this explicitly
+    
+    3. FORMATTING: Each news item MUST include:
+       - Headline (exact as published)
+       - Publication date (including month and year, with exact date when available)
+       - Source (publication name with link if available)
+       - Brief 1-2 sentence summary
+       - Label as [POSITIVE] or [CHALLENGING] at the beginning of each item
+    
+    4. VERIFICATION: Cross-reference news from multiple sources when possible
+    
+    5. MINIMUM REQUIREMENT: Include at least 3-5 news items total from {current_year} only
+       - If fewer than 3 recent news items from {current_year} can be found, explicitly state: "Limited recent news is available for this entity. The following represents the most current information found:"
+    
+    Use specific search queries like "[entity name] news {current_year}" and "[entity name] achievement {current_year}" to ensure the most recent coverage.''',
+    
+    '''INFORMATION CONFIDENCE INDICATORS:
+    For each section of your response, indicate the confidence level based on the quality and quantity of sources:
+    
+    - HIGH CONFIDENCE: Information verified from 3+ reputable sources including official websites
+    - MEDIUM CONFIDENCE: Information found in 1-2 reputable sources
+    - LOW CONFIDENCE: Information found only in user-generated content or forums
+    - NO CONFIDENCE: No information found (use "Data not available")
+    
+    These confidence indicators must be included at the beginning of each major section of your response.'''
 ]
-
-# Removed the detect_future_or_recent function since we'll use search tools for every query
 
 # Enhanced Google Search agent with web scraping capabilities
 search_agent_GoogleSearch = Agent(
@@ -144,17 +237,61 @@ search_agent_BaiduSearch = Agent(
 )
 
 # Enhanced main agent instructions for information fusion
-current_year = datetime.now().year
 main_agent_instructions = [
-    '''MANDATORY TABLE FORMAT INSTRUCTION FOR ALL SCHOOL/COLLEGE QUERIES:
+    f'''MANDATORY TABLE FORMAT INSTRUCTION FOR ALL SCHOOL/COLLEGE QUERIES:
     When ANY query involves a school, college, or educational institution, you MUST create a comprehensive table with EXACTLY these columns:
     
-    | Institution Name | Established Year | Location | Type | Total Student Enrollment | Annual Tuition Fees | Top Programs Offered | Accreditation Status | Average Campus Placement Rate | Recent Notable Achievements | Campus Facilities |
+    | Institution Name | Official Website | Contact Information | Established Year | Location | Type | Total Student Enrollment | Annual Tuition Fees | Top Programs Offered | Accreditation Status | Average Campus Placement Rate | Recent Notable Achievements | Campus Facilities |
+    
+    in case if query is related to School, then do not include the Average Campus Placement Rate column
+    CRITICAL: Website and contact information are REQUIRED fields:
+    - Official Website: URL
+    - Contact Information: Phone number or anything
+    
+    ACTIVELY search for these two pieces of information as a TOP PRIORITY using:
+    - The institution's official website
+    - "Contact Us" pages
+    - Directory listings
+    - Social media profiles
+    - Google Maps
+    
+    FOR RECENT NOTABLE ACHIEVEMENTS:
+    - ONLY include achievements from {current_year}
+    - Search with specific date filters using "after:{current_year}-01-01"
+    - Use search terms like "[institution name] achievement {current_year}" or "[institution name] award {current_year}"
+    - Use Crawl4ai on the institution's "News" or "Announcements" pages
     
     NO OTHER TABLE FORMAT IS ACCEPTABLE for educational institution queries. Do not deviate from this format.
-    Every column must be populated - use "Data not available" if information cannot be found.
+    Only if after exhaustive searching you cannot find website or contact info, use "Data not available".
     
-    After the table, you may provide additional information in paragraph form.''',
+    After the table, you MUST provide a "Recent News" section with both positive and negative news for EACH institution in your results, focusing ONLY on {current_year} news.''',
+    
+    f'''MANDATORY TABLE FORMAT INSTRUCTION FOR ALL COMPANY QUERIES:
+    When ANY query involves a company or business, you MUST create a comprehensive table with EXACTLY these columns:
+    
+    | Company Name | Official Website | Contact Information | Founded Year | Headquarters Location | Industry Sector | Number of Employees | Annual Revenue | Average Salary Range | Top Job Roles | Company Culture Rating | Recent Major News | Key Products/Services |
+    
+    CRITICAL: Website and contact information are REQUIRED fields:
+    - Official Website: Full URL starting with http:// or https://
+    - Contact Information: Phone number with country/area code or email address
+    
+    ACTIVELY search for these two pieces of information as a TOP PRIORITY using:
+    - The company's official website
+    - "Contact Us" pages
+    - Business directories
+    - Social media profiles
+    - Google Maps
+    
+    FOR RECENT MAJOR NEWS:
+    - ONLY include news from {current_year}
+    - Search with specific date filters using "after:{current_year}-01-01"
+    - Use search terms like "[company name] news {current_year}" or "[company name] announcement {current_year}"
+    - Use Crawl4ai on the company's "News" or "Press Releases" pages
+    
+    NO OTHER TABLE FORMAT IS ACCEPTABLE for company queries. Do not deviate from this format.
+    Only if after exhaustive searching you cannot find website or contact info, use "Data not available".
+    
+    After the table, you MUST provide a "Recent News" section with both positive and negative news for EACH company in your results, focusing ONLY on {current_year} news.''',
     
     '''CRITICAL WORKFLOW FOR INFORMATION RETRIEVAL:
         1. Use multiple search engines to gather latest information,
@@ -203,6 +340,16 @@ main_agent_instructions = [
     "Include both summary information and detailed facts to accommodate different user needs",
     "Provide perspective on information significance when relevant (e.g., whether a statistic is high/low)",
     
+    # News reporting requirement
+    f"MANDATORY: Include a 'Recent News' section after the table information for EACH entity mentioned",
+    f"For EACH entity, report BOTH positive and negative news from {current_year} ONLY",
+    f"For each news item, include exact date (if available), headline, brief summary, and source",
+    f"Clearly label each news item as 'POSITIVE' or 'CHALLENGING'",
+    f"Balance perspectives by including at least one positive and one negative news item for each entity",
+    f"Organize news items chronologically with newest items first",
+    f"Use date-restricted searches to find the newest information possible",
+    f"Use search queries with specific date ranges like 'after:{current_year}-01-01'",
+    
     # Special handling
     "For numerical data, include context (e.g., industry averages, historical trends) when available",
     "For technical topics, provide both simplified explanations and detailed information",
@@ -214,32 +361,37 @@ main_agent_instructions = [
     "Note when information comes from web scraping versus search results",
     "Acknowledge information gaps when searches don't yield complete answers",
     "Always double-check calculations and factual claims before presenting them",
-    "Do not append the query with the year, on your own, but you are allowed to do other changes for functionality"
+    "Add the current year to search queries to find the most recent information"
 ]
 
 # Modified system message template to ensure search tools are used for every query
-system_message_template = """
-You are an advanced information retrieval system. For EVERY query, follow this protocol EXACTLY:
+system_message_template = f"""
+You are an advanced information retrieval system designed to provide ONLY verified information. For EVERY query, follow this protocol EXACTLY:
 
 1. You MUST use your search tools for ALL queries to provide the most current and accurate information.
-   - Do not rely solely on your pre-trained knowledge, even for seemingly general or historical questions
+   - Do not rely on your pre-trained knowledge for ANY information
    - NEVER state "As of my last update" or similar phrases
    - ALWAYS verify information through search, regardless of the query content
+   - NEVER invent or hallucinate information that cannot be verified through search results
 
-2. For the query: "{user_query}"
+2. For the query: "{{user_query}}"
    - You MUST use search tools to gather current information
-   - Combine search results with your knowledge for comprehensive answers
+   - Combine search results with your knowledge ONLY for organization and structure
    - Verify ALL facts, figures, and statements through search
+   - Use "Data not available" for any information that cannot be verified
 
-3. Use multiple search engines when appropriate to cross-reference information:
+3. Use multiple search engines to cross-reference information:
    - Google Search for general global queries
    - Baidu Search for Asia-specific information
    - DuckDuckGo for privacy-sensitive topics
+   - ALWAYS show which search engine provided which information
 
 4. CRITICAL: For ANY school or college queries, you MUST create a table with EXACTLY these columns in this EXACT order:
-   | Institution Name | Established Year | Location | Type | Total Student Enrollment | Annual Tuition Fees | Top Programs Offered | Accreditation Status | Average Campus Placement Rate | Recent Notable Achievements | Campus Facilities |
+   | Institution Name | Official Website | Contact Details | Established Year | Location | Type | Total Student Enrollment | Annual Tuition Fees | Top Programs Offered | Accreditation Status | Average Campus Placement Rate | Recent Notable Achievements | Campus Facilities |
    
    - Institution Name: Latest official name
+   - Official Website: REQUIRED - Working URL to the institution's site with http:// or https://
+   - Contact Details: REQUIRED - Current phone number, email address
    - Established Year: Verified from multiple sources
    - Location: Current, precise location
    - Type: Public/Private - most recent status
@@ -248,14 +400,51 @@ You are an advanced information retrieval system. For EVERY query, follow this p
    - Top Programs Offered: Updated curriculum
    - Accreditation Status: Most recent certification
    - Average Campus Placement Rate: Latest available data (only for colleges)
-   - Recent Notable Achievements: Within last 2 years
+   - Recent Notable Achievements: Must be from {current_year} ONLY - use date-restricted searches
    - Campus Facilities: Current infrastructure
    
    For ANY missing information, write "Data not available" in the cell. NEVER omit columns or change their order.
+   Add source attribution for each piece of information [Source #].
 
-5. After searching, you must always synthesize a complete response that integrates all information sources with the COMPLETE table structure.
+5. MANDATORY SOURCES SECTION: After any table or detailed information, you MUST include a "Sources" section that lists:
+   - Full URLs of all websites used
+   - Date the information was accessed
+   - Brief description of what information was obtained from each source
+   - Number each source so it can be referenced in the body of the text [Source #]
 
-6. FINAL CHECK: Before submitting your response for school/college queries, verify that your table has ALL 11 REQUIRED COLUMNS in the EXACT order specified above.
+6. MANDATORY RECENT NEWS SECTION: For ALL queries (schools, colleges, companies, or any entity), you MUST include a "Recent News" section after the main information with:
+   - News items MUST be from {current_year} ONLY - use specific date-restricted searches
+   - At least 3-5 news items when available
+   - News items MUST include BOTH positive developments AND critical/challenging news
+   - Each news item must be labeled as [POSITIVE] or [CHALLENGING] at the beginning
+   - Include for each: headline, exact publication date (day/month/year if available), source URL, and 1-2 sentence summary
+   - Use specific search queries like "[entity name] news {current_year}" and "[entity name] achievement {current_year}"
+   - Use date-specific search parameters like "after:{current_year}-01-01"
+   - If limited recent news is available, explicitly state this but still provide what you can find
+
+7. OFFICIAL WEBSITE AND CONTACT DETAILS CHECK:
+   - Double-check that Official Website and Contact Details are included in the table
+   - For Official Website, provide complete URL (including https://)
+   - For Contact Details, provide phone, email, and/or social media when available
+   - These fields are REQUIRED for ALL entity-based queries
+
+8. CONFIDENCE INDICATORS:
+   - Label each major section with confidence level based on source quality and quantity:
+   - HIGH CONFIDENCE: Information verified from 3+ reputable sources including official websites
+   - MEDIUM CONFIDENCE: Information found in 1-2 reputable sources 
+   - LOW CONFIDENCE: Information found only in user-generated content or forums
+   - NO CONFIDENCE: No information found (use "Data not available")
+
+9. After searching, synthesize a complete response that integrates all information sources with proper source attribution.
+
+10. FINAL CHECK: Before submitting your response, verify:
+   - Your table has ALL REQUIRED COLUMNS in the EXACT order specified above
+   - Official Website and Contact Details columns are properly filled
+   - You've included the Sources section with numbered references
+   - You've included the Recent News section with BOTH positive and challenging news items
+   - All news items are from {current_year} ONLY
+   - Each major section has confidence indicators
+   - You've used "Data not available" rather than inventing information
 """
 
 def validate_education_query_response(response_text, query):
@@ -265,46 +454,216 @@ def validate_education_query_response(response_text, query):
     
     is_education_query = any(keyword.lower() in query.lower() for keyword in education_keywords)
     
+    # Check if the response includes a Sources section
+    has_sources_section = "Sources:" in response_text or "SOURCES:" in response_text
+    
+    if not has_sources_section:
+        sources_reminder = f"""
+
+**MISSING INFORMATION: A "Sources" section should be included listing all websites used for information gathering with URLs and access dates.**
+        """
+        response_text += sources_reminder
+    
+    # Check if confidence indicators are included
+    has_confidence_indicators = any(level in response_text for level in ["HIGH CONFIDENCE:", "MEDIUM CONFIDENCE:", "LOW CONFIDENCE:"])
+    
+    if not has_confidence_indicators:
+        confidence_reminder = """
+
+**MISSING INFORMATION: Confidence indicators (HIGH/MEDIUM/LOW) should be included for each major section based on source quality.**
+        """
+        response_text += confidence_reminder
+    
     if not is_education_query:
+        # Check if the response has "Official Website" and "Contact Details" if it's any type of entity
+        has_website = "Official Website" in response_text
+        has_contact = "Contact Details" in response_text
+        
+        if not (has_website and has_contact):
+            general_reminder = """
+
+**MISSING INFORMATION: Information about any entity should include Official Website and Contact Details. Please request this information if needed.**
+            """
+            response_text += general_reminder
+        
+        # Check if the response has a balanced news section
+        has_news_section = "Recent News" in response_text or "RECENT NEWS" in response_text
+        has_positive = "[POSITIVE]" in response_text
+        has_challenging = "[CHALLENGING]" in response_text
+        
+        if not has_news_section or not (has_positive and has_challenging):
+            news_reminder = f"""
+
+**MISSING INFORMATION: A Recent News section should be included with both positive and challenging news items from {current_year} only. Please request this information if needed.**
+            """
+            response_text += news_reminder
+            
         return response_text
     
-    # Check if the response has the required columns
+    # For education queries, check if the response has the required columns
     required_columns = [
-        "Institution Name", "Established Year", "Location", "Type", 
+        "Institution Name", "Official Website", "Contact Details", "Established Year", "Location", "Type", 
         "Total Student Enrollment", "Annual Tuition Fees", "Top Programs Offered",
         "Accreditation Status", "Average Campus Placement Rate", 
         "Recent Notable Achievements", "Campus Facilities"
     ]
     
+    # Check if the response has a balanced news section
+    has_news_section = "Recent News" in response_text or "RECENT NEWS" in response_text
+    has_positive = "[POSITIVE]" in response_text
+    has_challenging = "[CHALLENGING]" in response_text
+    
     # If there's a table but missing required columns, add a correction note
     if "| Institution Name |" not in response_text or len(required_columns) > response_text.count("|") / 2:
         correction_note = """
         
-**NOTE: The table provided is incomplete. A comprehensive educational institution table should include the following columns:**
+**MISSING INFORMATION: The table provided is incomplete. A comprehensive educational institution table should include the following columns:**
 
-| Institution Name | Established Year | Location | Type | Total Student Enrollment | Annual Tuition Fees | Top Programs Offered | Accreditation Status | Average Campus Placement Rate | Recent Notable Achievements | Campus Facilities |
+| Institution Name | Official Website | Contact Details | Established Year | Location | Type | Total Student Enrollment | Annual Tuition Fees | Top Programs Offered | Accreditation Status | Average Campus Placement Rate | Recent Notable Achievements | Campus Facilities |
+
+Please request more detailed information if needed.
+        """
+        response_text += correction_note
+    
+    # If there's no balanced news section, add a reminder
+    if not has_news_section or not (has_positive and has_challenging):
+        news_reminder = f"""
+
+**MISSING INFORMATION: A Recent News section should be included with both positive [POSITIVE] and challenging [CHALLENGING] news items from {current_year} only. Please request this information if needed.**
+        """
+        response_text += news_reminder
+    
+    # Add anti-hallucination disclaimer if needed
+    disclaimer = f"""
+
+**INFORMATION VERIFICATION NOTICE: All information provided has been gathered through search tools and web scraping as of {current_date_str}. Any field marked as "Data not available" indicates that information could not be verified from reliable sources. Please consult official websites for the most accurate and up-to-date information.**
+        """
+    response_text += disclaimer
+    
+    return response_text
+
+# Function to validate company query responses
+def validate_company_query_response(response_text, query):
+    # Simple detection for company-related queries
+    company_keywords = ["company", "business", "corporation", "firm", "enterprise", 
+                        "corporate", "industry", "organization", "startup"]
+    
+    is_company_query = any(keyword.lower() in query.lower() for keyword in company_keywords)
+    
+    if not is_company_query:
+        return response_text
+    
+    # Check if the response has the required columns for companies
+    if "| Company Name |" not in response_text or "| Official Website |" not in response_text or "| Contact Information |" not in response_text:
+        correction_note = """
+        
+**NOTE: The table provided is incomplete. A comprehensive company table should include the following columns:**
+
+| Company Name | Official Website | Contact Information | Founded Year | Headquarters Location | Industry Sector | Number of Employees | Annual Revenue | Average Salary Range | Top Job Roles | Company Culture Rating | Recent Major News | Key Products/Services |
 
 Please request more detailed information if needed.
         """
         return response_text + correction_note
     
+    # Check if there's a news section with both positive and negative news
+    if "Recent News" not in response_text or ("POSITIVE" not in response_text and "Positive" not in response_text) or ("NEGATIVE" not in response_text and "Negative" not in response_text and "CHALLENGING" not in response_text and "Challenging" not in response_text):
+        news_note = f"""
+
+**NOTE: The response should include a "Recent News" section with both positive and negative news items from {current_year} only for each company mentioned.**
+
+Please request this information if needed.
+        """
+        return response_text + news_note
+        
     return response_text
 
 
+# Function to clean system instructions from the response
+def clean_system_instructions(response_text):
+    # Patterns to identify and remove system instructions
+    patterns = [
+        r"As an advanced information retrieval system.*?protocol EXACTLY:",
+        r"YOU MUST use your search tools.*?information\.",
+        r"NEVER state \"As of my last update\".*?phrases",
+        r"ALWAYS verify information through.*?content",
+        r"CRITICAL: For ANY school or college queries.*?order\.",
+        r"MANDATORY: After the table.*?first",
+        r"YOUR RESPONSE MUST CONTAIN.*?requested",
+        r"I'll use my search tools to gather.*?Query:",
+        r"I must use search tools to gather.*?information\.",
+        r"For your query about.*?search tools\.",
+        r"I'll now search for the most up-to-date information.*?query\.",
+        r"Let me search for information about.*?\.",
+        r"Following the required format for educational institutions.*?\.",
+        r"I'll make sure to include both positive and negative news.*?\.",
+        r"I'll ensure I don't include system instructions.*?\.",
+        r"Now, let me gather information using my search tools.*?one moment\.",
+        r"Website and contact information are TOP PRIORITY fields.*?pages\.",
+        r"I need to use search tools for this query.*?\.",
+        r"I'll actively search for the official website and contact information.*?\.",
+        r"I'll make sure to include news for each entity.*?\.",
+        r"Each news item will be clearly labeled as.*?\.",
+        r"Let me search for the most current information.*?\.",
+        r"Before providing my response.*?\.",
+        r"I understand I need to provide comprehensive information.*?\.",
+        r"I'll get started on your query.*?\.",
+        r"I'll ALWAYS cite my sources.*?\.",
+        r"These instructions are VERY IMPORTANT.*?\.",
+        r"Using my search tools to gather current information.*?\.",
+        r"I need to conduct web searches for this.*?\.",
+        r"I'm using search tools to gather this information.*?\.",
+        r"I'll make sure to include website and contact information.*?\.",
+        r"I'm searching for both positive and negative news.*?\.",
+        r"I'll be sure to format my response according to.*?\.",
+        r"For this query, I need to.*?\.",
+        r"I must create a comprehensive table.*?\.",
+        r"Let me gather the requested information.*?\.",
+        r"I'm using search tools to find the most up-to-date information.*?\.",
+        r"I'll use Crawl4ai to extract detailed information.*?\."
+    ]
+    
+    # Apply the patterns to clean the response
+    cleaned_response = response_text
+    for pattern in patterns:
+        cleaned_response = re.sub(pattern, "", cleaned_response, flags=re.DOTALL)
+    
+    # Remove any resulting double spaces or newlines
+    cleaned_response = re.sub(r'\n\s*\n\s*\n', '\n\n', cleaned_response)
+    cleaned_response = re.sub(r'  +', ' ', cleaned_response)
+    
+    return cleaned_response.strip()
 
-
-
+# Function to enforce website and contact information inclusion
+def enforce_website_contact_info(response_text, query):
+    # If the response already has website and contact info, return as is
+    if ("| Official Website |" in response_text and "| Contact Information |" in response_text and 
+        not ("Official Website | Data not available" in response_text and "Contact Information | Data not available" in response_text)):
+        return response_text
+    
+    # Add a specific warning about website and contact information
+    warning = """
+    
+**IMPORTANT: The results should include Official Website and Contact Information for each entity mentioned. Please ensure this critical information is included in all tables.**
+    """
+    
+    return response_text + warning
 
 # Modified agent to use search tools for every query
 class AlwaysSearchAgent(Agent):
     def run(self, message, **kwargs):
         # Modified instruction to emphasize preserving the original query
-        enriched_message = f"IMPORTANT: YOU MUST USE SEARCH TOOLS and web scraping tools for this query but DO NOT add year on your own, but you are allowed to do other changes for functionality. Query: {message}"
+        enriched_message = f"CRITICAL: YOU MUST USE SEARCH TOOLS and web scraping tools for this query. YOU MUST FIND AND INCLUDE OFFICIAL WEBSITE URLs AND CONTACT INFORMATION for all entities. YOU MUST PROVIDE BOTH POSITIVE AND NEGATIVE NEWS for all entities mentioned. DO NOT add year on your own, but you are allowed to do other changes for functionality. Query: {message}"
         response = super().run(enriched_message, **kwargs)
         
-        # If it's not streaming, post-process the response for education queries
+        # If it's not streaming, post-process the response
         if not kwargs.get("stream", False):
+            # First validate the educational and company query responses
             response = validate_education_query_response(response, message)
+            response = validate_company_query_response(response, message)
+            # Enforce website and contact information
+            response = enforce_website_contact_info(response, message)
+            # Then clean out any system instructions
+            response = clean_system_instructions(response)
         
         return response
 
@@ -321,13 +680,6 @@ agent_team = AlwaysSearchAgent(
     markdown=False,
     system_message=system_message_template.format(user_query="Example query")
 )
-
-
-
-
-# Change above code only
-
-
 
 # Override the run method to inject the actual query into the system message
 original_run = agent_team.run
@@ -490,8 +842,6 @@ def stream_response():
                 - No unnecessary concatenation of words
                 - Use markdown formatting where appropriate
                 
-                For school or college information, ensure the table has EXACTLY these columns in this order:
-                | Institution Name | Established Year | Location | Type | Total Student Enrollment | Annual Tuition Fees | Top Programs Offered | Accreditation Status | Average Campus Placement Rate | Recent Notable Achievements | Campus Facilities |
                 
                 Text to format: ''' + all_chunks
             )
